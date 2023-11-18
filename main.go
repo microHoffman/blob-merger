@@ -25,7 +25,27 @@ func main() {
 	// TODO anything to do here?
 }
 
-func MergeBlobData(blobs ...[]byte) ([][]byte, error) {
+func blobDataLengthToBytes(length int) []byte {
+	return []byte{
+		byte(length >> 16),
+		byte(length >> 8),
+		byte(length),
+	}
+}
+
+func MergeBlobData(toAddresses [][]byte, blobs [][]byte) ([][]byte, error) {
+	if len(toAddresses) != len(blobs) {
+		return nil, fmt.Errorf("toAddresses and blobs parameter should have the same length")
+	}
+
+	for _, toAddress := range toAddresses {
+		if len(toAddress) != 42 {
+			return nil, fmt.Errorf("To address must have 42 length.")
+		} else if string(toAddress) == "0x0000000000000000000000000000000000000000" { // TODO shall we rather use some functions from go-ethereum here?
+			return nil, fmt.Errorf("To address can't be null in the blob tx.")
+		}
+	}
+
 	for _, blobData := range blobs {
 		if len(blobData) > MAX_BLOB_SIZE_IN_BYTES {
 			return nil, fmt.Errorf("One of the blob data is longer than max allowed length of %d bytes", MAX_BLOB_SIZE_IN_BYTES)
@@ -38,22 +58,32 @@ func MergeBlobData(blobs ...[]byte) ([][]byte, error) {
 	})
 
 	var result [][]byte
+	const (
+		ADDRESS_SIZE          = 42
+		BLOB_DATA_LENGTH_SIZE = 3
+	)
 	for len(blobs) > 0 {
-		var blobSize int = 0
-		var blobData []byte
+		var mergedBlobSize int = 0
+		var mergedBlobData []byte
 		var removedBlobs [][]byte
 
-		for _, blob := range blobs {
-			if (blobSize + len(blob)) <= MAX_BLOB_SIZE_IN_BYTES {
-				blobSize += len(blob)
-				removedBlobs = append(removedBlobs, blob)
-				blobData = append(blobData, blob...)
+		for i, iteratedBlob := range blobs {
+			iteratedBlobSize := len(iteratedBlob) + ADDRESS_SIZE + BLOB_DATA_LENGTH_SIZE
+			if (mergedBlobSize + iteratedBlobSize) <= MAX_BLOB_SIZE_IN_BYTES {
+				// adding toAddress
+				mergedBlobData = append(mergedBlobData, toAddresses[i]...)
+				// adding length of the blob data, the length takes always 3 bytes
+				mergedBlobData = append(mergedBlobData, blobDataLengthToBytes(iteratedBlobSize)...)
+				// add the blob data itself
+				mergedBlobData = append(mergedBlobData, iteratedBlob...)
+
+				mergedBlobSize += iteratedBlobSize
+				removedBlobs = append(removedBlobs, iteratedBlob)
 			}
 		}
 
-		// Remove processed blobs from stackOfBlobs
-		blobs = subtractSets(blobs, removedBlobs)
-		result = append(result, blobData)
+		blobs = removeUsedBlobs(blobs, removedBlobs)
+		result = append(result, mergedBlobData)
 	}
 
 	// Sort blobs by length in descending order
@@ -64,12 +94,12 @@ func MergeBlobData(blobs ...[]byte) ([][]byte, error) {
 	return result, nil
 }
 
-func subtractSets(slice, toRemove [][]byte) [][]byte {
+func removeUsedBlobs(allBlobs, blobsToRemove [][]byte) [][]byte {
 	var result [][]byte
 
 OuterLoop:
-	for _, s := range slice {
-		for _, r := range toRemove {
+	for _, s := range allBlobs {
+		for _, r := range blobsToRemove {
 			if bytes.Equal(s, r) {
 				continue OuterLoop
 			}
