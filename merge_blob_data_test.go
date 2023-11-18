@@ -75,7 +75,11 @@ func TestMergeBlobDataOkWithRandomValidInput(t *testing.T) {
 
 func TestMergeBlobDataWithMultipleBlobsResult(t *testing.T) {
 	// max blob size: 131072
-	// [100000, 30000, 120000, 1000, 35000] -> [130000, 121000, 35000]
+	// [100000, 30000, 120000, 1000, 35000] -> [
+	//		130090 (130000 + 90 (offsets)),
+	// 		121090 (121000 + 90 (offsets)),
+	// 		35045 (35000 + 45 (offsets))
+	// ]
 	// flow:
 	//  1) take highest number (120000), check if we can find any blob we can merge to
 	//  2) we can merge 120000 + 1000 => 121000 blob
@@ -101,14 +105,17 @@ func TestMergeBlobDataWithMultipleBlobsResult(t *testing.T) {
 	result, err := MergeBlobData(allToAddresses, allBlobs)
 	assert.Nil(t, err, "Threw error on valid specific data.")
 	assert.Equal(t, 3, len(result), "Result does not have 3 blobs.")
-	assert.Equal(t, 130000, len(result[0]), "Largest blob should have 131000 length.")
-	assert.Equal(t, 121000, len(result[1]), "Second largest blob should have 120000 length.")
-	assert.Equal(t, 35000, len(result[2]), "Third largest blob should have 35000 length.")
+	assert.Equal(t, 130090, len(result[0]), "Largest blob should have 130090 length.")
+	assert.Equal(t, 121090, len(result[1]), "Second largest blob should have 121090 length.")
+	assert.Equal(t, 35045, len(result[2]), "Third largest blob should have 35045 length.")
 }
 
-func TestMergeBlobDataWithSingleBlobResult(t *testing.T) {
+func TestMergeBlobDataWithOffsetsOverlappingIntoSecondBlob(t *testing.T) {
 	// max blob size: 131072
-	// [100000, 30000, 1000] -> [131000]
+	// [100000, 30000, 1000] -> [
+	//	130090 (130000 + 90 (offsets))
+	//  1045 (1000 + 45 (offsets))
+	// ]
 	a, _ := generateRandomByteArray(100000)
 	b, _ := generateRandomByteArray(30000)
 	c, _ := generateRandomByteArray(1000)
@@ -120,6 +127,29 @@ func TestMergeBlobDataWithSingleBlobResult(t *testing.T) {
 	}
 	result, err := MergeBlobData(allToAddresses, allBlobs)
 	assert.Nil(t, err, "Threw error on valid specific data.")
-	assert.Len(t, result, 1, "Result does not have 1 blob.")
-	assert.Len(t, result[0], 131000, "Blob should have 131000 length.")
+	assert.Equal(t, 2, len(result), "Result does not have 2 blob.")
+	assert.Equal(t, 130090, len(result[0]), "Largest blob should have 130090 length.")
+	assert.Equal(t, 1045, len(result[1]), "Second largest blob should have 1045 length.")
+}
+
+func TestMergeBlobDataSingleBlobResult(t *testing.T) {
+	// max blob size: 131072
+	// [100000, 4000, 5000, 2000] -> [
+	//		110180 (110000 + 180 (offsets))
+	// ]
+	a, _ := generateRandomByteArray(100000)
+	b, _ := generateRandomByteArray(4000)
+	c, _ := generateRandomByteArray(5000)
+	d, _ := generateRandomByteArray(2000)
+	allBlobs := [][]byte{a, b, c, d}
+	allToAddresses := [][]byte{
+		[]byte(TEST_ADDRESS_ONE),
+		[]byte(TEST_ADDRESS_TWO),
+		[]byte(TEST_ADDRESS_THREE),
+		[]byte(TEST_ADDRESS_FOUR),
+	}
+	result, err := MergeBlobData(allToAddresses, allBlobs)
+	assert.Nil(t, err, "Threw error on valid specific data.")
+	assert.Equal(t, 1, len(result), "Result does not have 1 blob.")
+	assert.Equal(t, 111180, len(result[0]), "Largest blob should have 111180 length.")
 }

@@ -10,8 +10,6 @@ const (
 	MAX_BLOB_SIZE_IN_BYTES = 1024 * 128 // 131072
 )
 
-// TODO add offsets + test
-
 // TODO add json rpc endpoint on suave-geth & call it
 
 // TODO add the precompile function to solidity library
