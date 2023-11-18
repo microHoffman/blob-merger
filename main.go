@@ -1,17 +1,33 @@
 package main
 
-const (
-	MAX_BLOB_SIZE_IN_BYTES = 1024 * 128
+import (
+	"fmt"
+	"sort"
 )
 
-func Merge_blob_data(blobs ...[]byte) [][]byte {
+const (
+	MAX_BLOB_SIZE_IN_BYTES = 1024 * 128 // 131072
+)
+
+func main() {
+	// anything to do here?
+}
+
+func MergeBlobData(blobs ...[]byte) ([][]byte, error) {
 	var result [][]byte
 	var blob []byte
 	result = append(result, blob)
+
+	// TODO does this work fine?
+	// TODO what to do in case of the same length of the []byte items in [][]byte?
+	sort.Slice(blobs, func(i, j int) bool {
+		return len(blobs[i]) > len(blobs[j])
+	})
+
 	for _, blob_data := range blobs {
 		var flag bool = false
 		if len(blob_data) > MAX_BLOB_SIZE_IN_BYTES {
-			continue
+			return nil, fmt.Errorf("One of the blob data is longer than max allowed length of %d bytes", MAX_BLOB_SIZE_IN_BYTES)
 		}
 		for i, blob := range result {
 			if len(blob)+len(blob_data) <= MAX_BLOB_SIZE_IN_BYTES {
@@ -26,5 +42,10 @@ func Merge_blob_data(blobs ...[]byte) [][]byte {
 			result = append(result, blob)
 		}
 	}
-	return result
+
+	sort.Slice(result, func(i, j int) bool {
+		return len(result[i]) > len(result[j])
+	})
+
+	return result, nil
 }
