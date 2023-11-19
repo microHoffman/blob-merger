@@ -32,6 +32,11 @@ func blobDataLengthToBytes(length int) []byte {
 }
 
 func MergeBlobData(toAddresses [][]byte, blobs [][]byte) ([][]byte, error) {
+	fmt.Println("=====")
+	fmt.Println()
+	fmt.Printf("MergeBlobData - number of separate blobs data: %v\n", len(blobs))
+	fmt.Println("MergeBlobData - start")
+
 	if len(toAddresses) != len(blobs) {
 		return nil, fmt.Errorf("toAddresses and blobs parameter should have the same length")
 	}
@@ -49,6 +54,16 @@ func MergeBlobData(toAddresses [][]byte, blobs [][]byte) ([][]byte, error) {
 			return nil, fmt.Errorf("One of the blob data is longer than max allowed length of %d bytes", MAX_BLOB_SIZE_IN_BYTES)
 		}
 	}
+
+	fmt.Printf("Size of each blob on inputc: [")
+	for _, blobData := range blobs {
+		fmt.Print(len(blobData))
+		fmt.Print(",")
+	}
+	fmt.Printf("]")
+	fmt.Println()
+
+	fmt.Println("MergeBlobData - checks passed")
 
 	// Sort blobs by length in descending order
 	sort.Slice(blobs, func(i, j int) bool {
@@ -88,6 +103,9 @@ func MergeBlobData(toAddresses [][]byte, blobs [][]byte) ([][]byte, error) {
 	sort.Slice(result, func(i, j int) bool {
 		return len(result[i]) > len(result[j])
 	})
+
+	fmt.Println("MergeBlobData - end")
+	fmt.Printf("MergeBlobData - number of merged blobs: %v\n", len(result))
 
 	return result, nil
 }
